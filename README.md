@@ -250,7 +250,7 @@ services:
 
 ```
 
--- Go to your Raspberry Pis' IP with the port 81 to access Nginx Reverse Proxy and setup a proxy host for your domain to http://nextcloud-app:80
+- Go to your Raspberry Pis' IP with the port 81 to access Nginx Reverse Proxy and setup a proxy host for your domain to http://nextcloud-app:80
 (Default credentials are `admin@example.com | changeme`)
 - Go to your domain and continue setup of Nextcloud :)
 
