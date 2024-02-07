@@ -249,8 +249,30 @@ services:
      - backend
 
 ```
-
+- Start your setup with `sudo docker compose up -d`
 - Go to your Raspberry Pis' IP with the port 81 to access Nginx Reverse Proxy and setup a proxy host for your domain to http://nextcloud-app:80
 (Default credentials are `admin@example.com | changeme`)
 - Go to your domain and continue setup of Nextcloud :)
+- After that, setup a script in `/etc/systemd/system` with any name and paste this 
+   ```
+   # /etc/systemd/system/docker-compose-app.service
+
+   [Unit]
+   Description=Nextcloud AIO Application Service
+   Requires=docker.service
+   After=docker.service portainer.mount
+
+   [Service]
+   Type=oneshot
+   RemainAfterExit=yes
+   WorkingDirectory=/home/prateek/docker_compose_files/nextcloud-aio
+   ExecStart=/usr/bin/docker compose up -d
+   ExecStop=/usr/bin/docker compose down
+   TimeoutStartSec=0
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+- Save it as `nextcloud.aio.service` and run `sudo systemctl enable nextcloud-aio`. Now, whenever your system restarts, your instance of Nextcloud comes up automatically.
+
 
