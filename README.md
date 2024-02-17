@@ -180,8 +180,12 @@ volumes:
       device: /portainer/proxymanager/ssl
 
 networks:
-  frontend:
-  backend:
+  vpn_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16
 
 services:
   nextcloud-app:
@@ -194,18 +198,18 @@ services:
       - MYSQL_PASSWORD=<redacted>
       - MYSQL_DATABASE=common
       - MYSQL_USER=prateek-nextcloud
-      - MYSQL_HOST=mysql-db
+      - MYSQL_HOST=172.18.0.22
       - PHP_UPLOAD_LIMIT=10G
       - PHP_MEMORY_LIMIT=3G
-      - REDIS_HOST=redis
+      - REDIS_HOST=172.18.0.23
       - REDIS_PORT=6379
       - REDIS_HOST_PASSWORD=<redacted>
     depends_on:
       - mysql-db
       - redis
-    networks:
-      - frontend
-      - backend
+      - vpn
+    network_mode: "service:vpn"
+    entrypoint: sh -c "apt update && apt install -y ffmpeg aria2 && su -s /bin/bash -c '/usr/bin/aria2c --continue --daemon=true --enable-rpc=true --rpc-secret=ncdownloader123 --listen-port=51413 --rpc-listen-port=6800 --follow-torrent=true --enable-dht=true --enable-peer-exchange=true --peer-id-prefix=-TR2770- --user-agent=Transmission/2.77 --log-level=notice --seed-ratio=1.0 --bt-seed-unverified=true --max-connection-per-server=4 --max-concurrent-downloads=10 --check-certificate=false --on-download-complete=/var/www/html/apps/ncdownloader/hooks/completeHook.sh --on-download-start=/var/www/html/apps/ncdownloader/hooks/startHook.sh --save-session=/var/www/html/data/aria2/aria2.session --input-file=/var/www/html/data/aria2/aria2.session --log=/var/www/html/data/aria2/aria2.log' www-data && exec /entrypoint.sh apache2-foreground"
 
   mysql-db:
     image: mysql
@@ -221,8 +225,11 @@ services:
       - MYSQL_PASSWORD=<redacted>
       - MYSQL_DATABASE=common
       - MYSQL_USER=prateek-nextcloud
+    depends_on:
+      - vpn
     networks:
-      - backend
+      vpn_network:
+        ipv4_address: 172.18.0.22
 
   proxymanager:
     image: jc21/nginx-proxy-manager:2.10.2
@@ -236,9 +243,8 @@ services:
       - proxymanager-data:/data
       - proxymanager-ssl:/etc/letsencrypt
     depends_on:
+      - vpn
       - nextcloud-app
-    networks:
-      - frontend
 
   redis:
    image: redis
@@ -246,7 +252,30 @@ services:
    restart: always
    command: redis-server --requirepass <redacted>
    networks:
-     - backend
+      vpn_network:
+        ipv4_address: 172.18.0.23
+   depends_on:
+    - vpn
+
+  vpn:
+    image: qmcgaw/gluetun
+    container_name: vpn
+    hostname: vpn
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - VPN_SERVICE_PROVIDER=surfshark
+      - OPENVPN_USER=<redacted>
+      - OPENVPN_PASSWORD=<redacted>
+      - SERVER_COUNTRIES=Netherlands
+    networks:
+      vpn_network:
+    ports:
+      - "90:80"
+      - "6800:6800"
+      - "51413:51413"
+      - "6800:6800/udp"
+      - "51413:51413/udp"
 
 ```
 - Start your setup with `sudo docker compose up -d`
